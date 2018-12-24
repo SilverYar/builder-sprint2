@@ -7,12 +7,13 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.pvasilev.builderapplication.adapters.ActionsAdapter
 import com.pvasilev.builderapplication.adapters.ModelsAdapter
 import com.pvasilev.builderapplication.adapters.RolesAdapter
 import com.pvasilev.builderapplication.models.Action
+import com.pvasilev.builderapplication.models.CompositeRole
 import com.pvasilev.builderapplication.models.Model
-import com.pvasilev.builderapplication.models.Role
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -31,13 +32,13 @@ class MainActivity : AppCompatActivity() {
                 Color.RED,
                 Color.YELLOW
         )
-        val roles = (0..30).map { Role("Role $it", colors[it % colors.size]) }.toMutableList()
+        val roles = (mutableListOf(CompositeRole.Condition) + (0..30).map { CompositeRole.Role("Role $it", colors[it % colors.size]) }).toMutableList()
         val models = mutableListOf<Model>()
-        rv_actions.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        rv_actions.layoutManager = LinearLayoutManager(this)
         rv_actions.adapter = ActionsAdapter(actions, lastActions)
-        rv_heroes.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        rv_heroes.layoutManager = LinearLayoutManager(this)
         rv_heroes.adapter = RolesAdapter(roles, lastActions)
-        rv_models.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        rv_models.layoutManager = LinearLayoutManager(this)
         rv_models.adapter = ModelsAdapter(models, roles, lastActions)
         rv_models.setOnDragListener { v, event ->
             val source = event.localState as View
@@ -45,7 +46,7 @@ class MainActivity : AppCompatActivity() {
                 val model = Model(actions[source.tag as Int], mutableListOf())
                 (rv_models.adapter as ModelsAdapter).addModel(model)
                 lastActions.add {
-                    models.removeAt(models.size-1)
+                    models.removeAt(models.size - 1)
                     (rv_models.adapter)!!.notifyDataSetChanged()
                 }
             }

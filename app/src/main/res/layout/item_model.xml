@@ -2,9 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/model_container"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:paddingBottom="16dp"
-    android:paddingTop="16dp">
+    android:layout_height="wrap_content">
 
     <LinearLayout
         android:id="@+id/actions_container"
@@ -17,7 +15,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_marginStart="16dp"
-        android:layout_weight="1" />
+        android:layout_weight="1"
+        android:gravity="center_horizontal" />
 
 </LinearLayout>

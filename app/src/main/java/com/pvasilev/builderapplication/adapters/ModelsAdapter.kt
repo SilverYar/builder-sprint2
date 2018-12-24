@@ -1,18 +1,31 @@
 package com.pvasilev.builderapplication.adapters
 
 import android.content.ClipData
+import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.view.*
+import android.widget.LinearLayout
+import androidx.recyclerview.widget.RecyclerView
+import com.afollestad.materialdialogs.MaterialDialog
+import com.afollestad.materialdialogs.list.listItems
 import com.pvasilev.builderapplication.R
+import com.pvasilev.builderapplication.children
+import com.pvasilev.builderapplication.inflate
+import com.pvasilev.builderapplication.models.CompositeRole
 import com.pvasilev.builderapplication.models.Model
-import com.pvasilev.builderapplication.models.Role
+import kotlinx.android.synthetic.main.activity_main.view.*
 import kotlinx.android.synthetic.main.item_model.view.*
 import kotlinx.android.synthetic.main.layout_action.view.*
+import kotlin.math.abs
 
-class ModelsAdapter(private val models: MutableList<Model>, private val roles: List<Role>, private val lastActions: MutableList<() -> Unit>) : androidx.recyclerview.widget.RecyclerView.Adapter<ModelsAdapter.ModelVH>() {
+class ModelsAdapter(
+        private val models: MutableList<Model>,
+        private val roles: List<CompositeRole>,
+        private val lastActions: MutableList<() -> Unit>
+) : RecyclerView.Adapter<ModelsAdapter.ModelVH>() {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ModelVH {
-        val itemVIew = LayoutInflater.from(parent.context).inflate(R.layout.item_model, parent, false)
+        val itemVIew = parent.inflate(R.layout.item_model)
         return ModelVH(itemVIew)
     }
 
@@ -25,7 +38,7 @@ class ModelsAdapter(private val models: MutableList<Model>, private val roles: L
         notifyItemInserted(models.size)
     }
 
-    inner class ModelVH(itemVIew: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(itemVIew), View.OnDragListener, View.OnTouchListener {
+    inner class ModelVH(itemVIew: View) : RecyclerView.ViewHolder(itemVIew), View.OnDragListener, View.OnTouchListener {
         override fun onTouch(v: View?, event: MotionEvent?): Boolean {
             return gestureDetector.onTouchEvent(event)
         }
@@ -41,7 +54,61 @@ class ModelsAdapter(private val models: MutableList<Model>, private val roles: L
                 }
             }
 
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                val model = models[adapterPosition]
+                MaterialDialog(itemVIew.context)
+                        .title(text = model.action.title)
+                        .show {
+                            val items = model.roles.map {
+                                when (it) {
+                                    is CompositeRole.Role -> it.name
+                                    is CompositeRole.Condition -> "OR"
+                                }
+                            }
+                            listItems(items = items)
+                        }
+                return true
+            }
+
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                val listsContainer = itemView.parent.parent as ViewGroup
+                val controlsContainer = (listsContainer.parent as ViewGroup).controls_container
+                val buttons = controlsContainer.children()
+                val rvActions = listsContainer.rv_actions
+                val rvHeroes = listsContainer.rv_heroes
+                val rvModels = listsContainer.rv_models
+                val recyclerViews = listOf(rvActions, rvHeroes, rvModels)
+                val weights = if ((rvModels.layoutParams as LinearLayout.LayoutParams).weight == 6.0F) {
+                    listOf(1.5F, 6.0F, 1.5F)
+                } else {
+                    listOf(1.5F, 1.5F, 6.0F)
+                }
+                weights.forEachIndexed { index, weight ->
+                    var lp = recyclerViews[index].layoutParams as LinearLayout.LayoutParams
+                    lp.weight = weight
+                    recyclerViews[index].layoutParams = lp
+                    lp = buttons[index].layoutParams as LinearLayout.LayoutParams
+                    lp.weight = weight
+                    buttons[index].layoutParams = lp
+                }
+                return true
+            }
+
             override fun onDown(e: MotionEvent): Boolean {
+                return true
+            }
+
+            override fun onFling(e1: MotionEvent, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                val dx = abs(e2.x - e1.x)
+                if (itemView.width / dx > 0.5) {
+                    val action = models.removeAt(adapterPosition)
+                    val position = adapterPosition
+                    notifyItemRemoved(position)
+                    lastActions.add {
+                        models.add(position, action)
+                        notifyItemInserted(position)
+                    }
+                }
                 return true
             }
         }
@@ -52,11 +119,14 @@ class ModelsAdapter(private val models: MutableList<Model>, private val roles: L
             val source = event.localState as View
             if (event.action == DragEvent.ACTION_DROP && source.id == R.id.role_container) {
                 val role = roles[source.tag as Int]
-                models[v.tag as Int].roles.add(role)
-                notifyItemChanged(v.tag as Int)
-                lastActions.add {
-                    models[v.tag as Int].roles.removeAt(models[v.tag as Int].roles.size - 1)
-                    notifyItemChanged((v.tag as Int))
+                val roles = models[v.tag as Int].roles
+                if (!(roles.isNotEmpty() && roles.last() is CompositeRole.Condition && role is CompositeRole.Condition)) {
+                    models[v.tag as Int].roles.add(role)
+                    notifyItemChanged(v.tag as Int)
+                    lastActions.add {
+                        models[v.tag as Int].roles.removeAt(models[v.tag as Int].roles.size - 1)
+                        notifyItemChanged((v.tag as Int))
+                    }
                 }
             }
             if (event.action == DragEvent.ACTION_DROP && source.id == R.id.model_container) {
@@ -75,14 +145,31 @@ class ModelsAdapter(private val models: MutableList<Model>, private val roles: L
             return true
         }
 
+        private fun changeHeight() {
+            val screenHeight = itemView.resources.displayMetrics.heightPixels;
+            val a = screenHeight / 16.0F
+            val measuredHeight = 7 * a / 8
+            val lp = itemView.layoutParams
+            lp.height = measuredHeight.toInt()
+            itemView.layoutParams = lp
+        }
+
         fun bind(model: Model) {
             with(itemView) {
+                changeHeight()
                 tv_role.text = model.action.title
                 actions_container.removeAllViews()
-                model.roles.takeLast(3).forEach { action ->
+                model.roles.takeLast(3).forEach { role ->
                     val actionView = LayoutInflater.from(context).inflate(R.layout.layout_action, actions_container, false)
                     with(actionView) {
-                        tv_action.background = ColorDrawable(action.color)
+                        when (role) {
+                            is CompositeRole.Role -> {
+                                tv_action.background = ColorDrawable(role.color)
+                            }
+                            is CompositeRole.Condition -> {
+                                tv_action.background = ColorDrawable(Color.BLACK)
+                            }
+                        }
                     }
                     actions_container.addView(actionView)
                 }

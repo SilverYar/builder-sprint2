@@ -5,19 +5,27 @@ import android.os.Build
 import android.text.SpannableStringBuilder
 import android.view.*
 import android.widget.LinearLayout
+import androidx.recyclerview.widget.RecyclerView
 import com.afollestad.materialdialogs.DialogCallback
 import com.afollestad.materialdialogs.MaterialDialog
 import com.afollestad.materialdialogs.callbacks.onPreShow
 import com.afollestad.materialdialogs.customview.customView
 import com.afollestad.materialdialogs.customview.getCustomView
 import com.pvasilev.builderapplication.R
+import com.pvasilev.builderapplication.children
+import com.pvasilev.builderapplication.inflate
 import com.pvasilev.builderapplication.models.Action
+import kotlinx.android.synthetic.main.activity_main.view.*
 import kotlinx.android.synthetic.main.dialog_action.view.*
 import kotlinx.android.synthetic.main.item_action.view.*
+import kotlin.math.abs
 
-class ActionsAdapter(private val actions: MutableList<Action>, private val lastActions: MutableList<() -> Unit>) : androidx.recyclerview.widget.RecyclerView.Adapter<ActionsAdapter.ActionVH>() {
+class ActionsAdapter(
+        private val actions: MutableList<Action>,
+        private val lastActions: MutableList<() -> Unit>
+) : RecyclerView.Adapter<ActionsAdapter.ActionVH>() {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ActionVH {
-        val itemView = LayoutInflater.from(parent.context).inflate(R.layout.item_action, parent, false)
+        val itemView = parent.inflate(R.layout.item_action)
         return ActionVH(itemView)
     }
 
@@ -25,17 +33,44 @@ class ActionsAdapter(private val actions: MutableList<Action>, private val lastA
 
     override fun getItemCount() = actions.size
 
-    inner class ActionVH(itemView: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(itemView), View.OnTouchListener {
+    inner class ActionVH(itemView: View) : RecyclerView.ViewHolder(itemView), View.OnTouchListener {
 
         private val gestureListener = object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent): Boolean {
-                val lp = (itemView.parent as ViewGroup).layoutParams as LinearLayout.LayoutParams
-                if (lp.weight.toInt() == 1) {
-                    lp.weight = 2.0F
+                val listsContainer = itemView.parent.parent as ViewGroup
+                val controlsContainer = (listsContainer.parent as ViewGroup).controls_container
+                val buttons = controlsContainer.children()
+                val rvActions = listsContainer.rv_actions
+                val rvHeroes = listsContainer.rv_heroes
+                val rvModels = listsContainer.rv_models
+                val recyclerViews = listOf(rvActions, rvHeroes, rvModels)
+                val weights = if ((rvActions.layoutParams as LinearLayout.LayoutParams).weight == 6.0F) {
+                    listOf(1.5F, 6.0F, 1.5F)
                 } else {
-                    lp.weight = 1.0F
+                    listOf(6.0F, 1.5F, 1.5F)
                 }
-                (itemView.parent as ViewGroup).layoutParams = lp
+                weights.forEachIndexed { index, weight ->
+                    var lp = recyclerViews[index].layoutParams as LinearLayout.LayoutParams
+                    lp.weight = weight
+                    recyclerViews[index].layoutParams = lp
+                    lp = buttons[index].layoutParams as LinearLayout.LayoutParams
+                    lp.weight = weight
+                    buttons[index].layoutParams = lp
+                }
+                return true
+            }
+
+            override fun onFling(e1: MotionEvent, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                val dx = abs(e2.x - e1.x)
+                if (itemView.width / dx > 0.5) {
+                    val action = actions.removeAt(adapterPosition)
+                    val position = adapterPosition
+                    notifyItemRemoved(position)
+                    lastActions.add {
+                        actions.add(position, action)
+                        notifyItemInserted(position)
+                    }
+                }
                 return true
             }
 
@@ -76,8 +111,18 @@ class ActionsAdapter(private val actions: MutableList<Action>, private val lastA
 
         private val gestureDetector = GestureDetector(itemView.context, gestureListener)
 
+        private fun changeHeight() {
+            val screenHeight = itemView.resources.displayMetrics.heightPixels;
+            val a = screenHeight / 16.0F
+            val measuredHeight = 7 * a / 8
+            val lp = itemView.layoutParams
+            lp.height = measuredHeight.toInt()
+            itemView.layoutParams = lp
+        }
+
         fun bind(action: Action) {
             with(itemView) {
+                changeHeight()
                 tv_action.text = action.title
                 tv_action.tag = adapterPosition
                 setOnTouchListener(this@ActionVH)
