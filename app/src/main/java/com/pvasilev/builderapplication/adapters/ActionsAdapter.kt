@@ -36,6 +36,9 @@ class ActionsAdapter(
     inner class ActionVH(itemView: View) : RecyclerView.ViewHolder(itemView), View.OnTouchListener {
 
         private val gestureListener = object : GestureDetector.SimpleOnGestureListener() {
+            /**
+             * Method that change columns weights
+             */
             override fun onDoubleTap(e: MotionEvent): Boolean {
                 val listsContainer = itemView.parent.parent as ViewGroup
                 val controlsContainer = (listsContainer.parent as ViewGroup).controls_container
@@ -60,6 +63,10 @@ class ActionsAdapter(
                 return true
             }
 
+            /**
+             * Method for removing action item from list, if diff between start and end point more
+             * that 0.5 of item width
+             */
             override fun onFling(e1: MotionEvent, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
                 val dx = abs(e2.x - e1.x)
                 if (itemView.width / dx > 0.5) {
@@ -74,6 +81,9 @@ class ActionsAdapter(
                 return true
             }
 
+            /**
+             * Method for displaying dialog with action information
+             */
             override fun onSingleTapConfirmed(e: MotionEvent?): Boolean {
                 val dialogCallback: DialogCallback = {
                     it.getCustomView()?.let {
@@ -94,6 +104,9 @@ class ActionsAdapter(
                 return true
             }
 
+            /**
+             * Method that start drag operation
+             */
             override fun onLongPress(e: MotionEvent) {
                 val clipData = ClipData.newPlainText("", "")
                 val shadowBuilder = View.DragShadowBuilder(itemView)
@@ -111,6 +124,10 @@ class ActionsAdapter(
 
         private val gestureDetector = GestureDetector(itemView.context, gestureListener)
 
+        /**
+         * Method that set action item height as 7/8 * a
+         * a = 1/16 of screen height
+         */
         private fun changeHeight() {
             val screenHeight = itemView.resources.displayMetrics.heightPixels;
             val a = screenHeight / 16.0F
@@ -147,6 +164,9 @@ class ActionsAdapter(
             }
         }
 
+        /**
+         * Method for sending touch events to gesture detector
+         */
         override fun onTouch(v: View, event: MotionEvent): Boolean {
             return gestureDetector.onTouchEvent(event)
         }
